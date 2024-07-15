@@ -1,0 +1,11 @@
+host_address:
+  value: "192.168.226.10"
+  dtype: string
+
+buffer_size:
+  value: 3
+  dtype: int
+
+use_object:
+  value: true
+  dtype: bool
