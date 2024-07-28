@@ -13,9 +13,8 @@
 #define RAISIN_PLUGIN_VICON_HPP
 
 #include "raisin_plugin/plugin.hpp"
-#include "DataStreamClient.h"
-
-using namespace ViconDataStreamSDK::CPP;
+#include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 
 namespace raisin
 {
@@ -114,7 +113,7 @@ private:
   }
 };
 
-class Vicon : public Plugin
+ class Vicon : public rclcpp::Node, public Plugin
 {
 public:
   Vicon(
@@ -122,27 +121,23 @@ public:
     raisim::World & worldSim, raisim::RaisimServer & serverSim, GlobalResource & globalResource);
   bool advance() final;
 
+  void createSubscriber();
+
   bool init() final;
 
-  bool initVicon();
-
-  bool initData();
-
-  void viconUpdate();
-
-
 private:
+  void poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+
+  /// Subscriber
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr poseSubscription_;
+
+  /// Articulated
   raisim::ArticulatedSystem * robotHub_;
   raisim::ArticulatedSystem * robotVicon_;
   parameter::ParameterContainer & param_;
 
-  /// Vicon client
-  ViconDataStreamSDK::CPP::Client client_;
-  std::string host_address_;
-  int buffer_size_;
-
   /// Vicon Data
-  std::map<std::string, PoseBuffer> poseBuffers_; 
+  std::map<std::string, PoseBuffer> poseBuffers_;
 
   /// param
   bool use_object_;

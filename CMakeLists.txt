@@ -19,25 +19,15 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(raisin_plugin REQUIRED)
-
-set(VICON_SDK ViconDataStreamSDK_1.11.0.128037h__Linux64)
-set(VICON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/${VICON_SDK})
-
-set(VICON_LIBRARIES
-  ${VICON_DIR}/libViconDataStreamSDK_CPP.so
-  ${VICON_DIR}/libboost_chrono.so.1.68.0
-  ${VICON_DIR}/libboost_system.so.1.68.0
-  ${VICON_DIR}/libboost_thread.so.1.68.0
-  ${VICON_DIR}/libboost_timer.so.1.68.0
-)
+find_package(geometry_msgs REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(raisim REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
   src/vicon/vicon.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}
-  ${VICON_LIBRARIES}
-)
+target_link_libraries(${PROJECT_NAME} raisim::raisim)
 
 target_include_directories(${PROJECT_NAME}
   PUBLIC
@@ -49,9 +39,11 @@ target_include_directories(${PROJECT_NAME}
 
 ament_target_dependencies(${PROJECT_NAME}
   raisin_plugin
+  geometry_msgs
 )
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
+ament_export_dependencies(geometry_msgs)
 
 install(
   DIRECTORY include/
@@ -65,10 +57,6 @@ install(
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
   INCLUDES DESTINATION include
-)
-
-install(DIRECTORY third_party/
-  DESTINATION third_party
 )
 
 install(FILES
