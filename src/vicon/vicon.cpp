@@ -147,7 +147,7 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
   raisim::quatToRotMat(quat, orientation);
 
   /// Offset
-  position += orientation * offsets_[frame_id];
+  position += orientation.e() * offsets_[frame_id];
 
   poseBuffers_[frame_id].addPose(0, position, orientation.e());
 }
