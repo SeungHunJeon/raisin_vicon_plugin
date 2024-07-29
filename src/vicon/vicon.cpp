@@ -18,14 +18,13 @@ namespace plugin
 Vicon::Vicon(
   raisim::World & world, raisim::RaisimServer & server,
   raisim::World & worldSim, raisim::RaisimServer & serverSim, GlobalResource & globalResource)
-: rclcpp::Node("raisin_vicon_plugin"), Plugin(world, server, worldSim, serverSim, globalResource), 
-  param_(parameter::ParameterContainer::getRoot()["raisin_vicon_plugin"]) 
+: rclcpp::Node("RaisinViconPlugin"), Plugin(world, server, worldSim, serverSim, globalResource),
+  param_(parameter::ParameterContainer::getRoot()["raisin_vicon_plugin"])
 {
   pluginType_ = PluginType::CUSTOM;
 
   param_.loadFromPackageParameterFile("raisin_vicon_plugin");
-  use_object_ = param_("use_object");
-  
+
   robotHub_ = reinterpret_cast<raisim::ArticulatedSystem *>(
     worldHub_.getObject("robot")
   ); /// robot
@@ -34,31 +33,6 @@ Vicon::Vicon(
     worldHub_.getObject("robot_vicon")
   ); /// robot vicon
 
-  poseBuffers_.emplace("robot", PoseBuffer(100));
-
-  if(use_object_) {
-    objectVicon_ = reinterpret_cast<raisim::SingleBodyObject *>(
-      worldHub_.getObject("object_vicon")
-    );
-    poseBuffers_.emplace("object", PoseBuffer(100));
-
-    logIdx_ = dataLogger_.initializeAnotherDataGroup(
-    "Vicon",
-    "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-    "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
-    "ObjectPosition", poseBuffers_["object"].getLastPose().position,
-    "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation);
-  }
-
-  else {
-    logIdx_ = dataLogger_.initializeAnotherDataGroup(
-    "Vicon",
-    "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-    "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation);
-  }
-
-  this->createSubscriber();
-  
 }
 bool Vicon::advance()
 {
@@ -73,7 +47,7 @@ bool Vicon::advance()
   robotHub_->unlockMutex();
 
   auto pose = poseBuffers_["robot"].getLastPose();
-  
+
   raisim::rotMatToQuat(pose.orientation, quat);
 
   gc.head(3) = pose.position;
@@ -83,7 +57,7 @@ bool Vicon::advance()
   robotVicon_->setState(gc, gv);
   serverHub_.unlockVisualizationServerMutex();
 
-  if(use_object_) {
+  if (use_object_) {
     pose = poseBuffers_["object"].getLastPose();
     raisim::rotMatToQuat(pose.orientation, quat);
     serverHub_.lockVisualizationServerMutex();
@@ -92,18 +66,16 @@ bool Vicon::advance()
     serverHub_.unlockVisualizationServerMutex();
 
     dataLogger_.append(
-    logIdx_,
-    poseBuffers_["robot"].getLastPose().position,
-    poseBuffers_["robot"].getLastPose().orientation,
-    poseBuffers_["object"].getLastPose().position,
-    poseBuffers_["object"].getLastPose().orientation);
-  }
-
-  else {
+      logIdx_,
+      poseBuffers_["robot"].getLastPose().position,
+      poseBuffers_["robot"].getLastPose().orientation,
+      poseBuffers_["object"].getLastPose().position,
+      poseBuffers_["object"].getLastPose().orientation);
+  } else {
     dataLogger_.append(
-    logIdx_,
-    poseBuffers_["robot"].getLastPose().position,
-    poseBuffers_["robot"].getLastPose().orientation);
+      logIdx_,
+      poseBuffers_["robot"].getLastPose().position,
+      poseBuffers_["robot"].getLastPose().orientation);
   }
 
   return true;
@@ -111,19 +83,55 @@ bool Vicon::advance()
 
 bool Vicon::init()
 {
+  use_object_ = bool(param_("use_object"));
+
+  poseBuffers_.emplace("robot", PoseBuffer(100));
+
+  /// Offset
+  double robot_offset_z = double(param_["offset"]["robot"]("z"));
+  Eigen::Vector3d robot_offset{0, 0, robot_offset_z};
+  offsets_.emplace("robot", robot_offset);
+
+  if (use_object_) {
+    objectVicon_ = reinterpret_cast<raisim::SingleBodyObject *>(
+      worldHub_.getObject("object_vicon")
+    );
+    poseBuffers_.emplace("object", PoseBuffer(100));
+
+    double object_offset_z = double(param_["offset"]["object"]("z"));
+    Eigen::Vector3d object_offset{0, 0, object_offset_z};
+    offsets_.emplace("object", object_offset);
+
+    logIdx_ = dataLogger_.initializeAnotherDataGroup(
+      "Vicon",
+      "RobotPosition", poseBuffers_["robot"].getLastPose().position,
+      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
+      "ObjectPosition", poseBuffers_["object"].getLastPose().position,
+      "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation);
+  } else {
+    logIdx_ = dataLogger_.initializeAnotherDataGroup(
+      "Vicon",
+      "RobotPosition", poseBuffers_["robot"].getLastPose().position,
+      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation);
+  }
+
+  this->createSubscriber();
+
   return true;
 }
 
-void Vicon::createSubscriber() {
+void Vicon::createSubscriber()
+{
   rclcpp::QoS qos(rclcpp::KeepLast(1));
 
   poseSubscription_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-      "vicon_pose", 10, std::bind(&Vicon::poseCallback, this, std::placeholders::_1));
+    "vicon_pose", 10, std::bind(&Vicon::poseCallback, this, std::placeholders::_1));
 }
 
-void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
+void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+{
   Eigen::Vector3d position;
-  raisim::Mat<3,3> orientation;
+  raisim::Mat<3, 3> orientation;
   raisim::Vec<4> quat;
 
   std::string frame_id = msg->header.frame_id;
@@ -137,6 +145,9 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
   quat[3] = msg->pose.orientation.z;
 
   raisim::quatToRotMat(quat, orientation);
+
+  /// Offset
+  position += orientation * offsets_[frame_id];
 
   poseBuffers_[frame_id].addPose(0, position, orientation.e());
 }

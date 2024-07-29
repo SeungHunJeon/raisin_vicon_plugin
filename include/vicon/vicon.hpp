@@ -13,6 +13,7 @@
 #define RAISIN_PLUGIN_VICON_HPP
 
 #include "raisin_plugin/plugin.hpp"
+#include "raisin_data_logger/raisin_data_logger.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
@@ -32,7 +33,8 @@ class PoseBuffer
 {
 public:
   PoseBuffer(size_t maxSize = 100)
-  : maxSize_(maxSize) {
+  : maxSize_(maxSize)
+  {
     // Fill the buffer with default poses
     for (size_t i = 0; i < maxSize_; ++i) {
       buffer.push_back(getDefaultPose());
@@ -113,7 +115,7 @@ private:
   }
 };
 
- class Vicon : public rclcpp::Node, public Plugin
+class Vicon : public rclcpp::Node, public Plugin
 {
 public:
   Vicon(
@@ -139,9 +141,12 @@ private:
   /// Vicon Data
   std::map<std::string, PoseBuffer> poseBuffers_;
 
+  /// Vicon Offset
+  std::map<std::string, Eigen::Vector3d> offsets_;
+
   /// param
   bool use_object_;
-  raisim::SingleBodyObject* objectVicon_;
+  raisim::SingleBodyObject * objectVicon_;
 };
 }     // plugin
 } // raisin

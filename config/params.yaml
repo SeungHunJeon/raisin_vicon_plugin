@@ -9,3 +9,13 @@ buffer_size:
 use_object:
   value: true
   dtype: bool
+
+offset:
+  robot:
+    z:
+      value: -0.1
+      dtype: double
+  object:
+    z:
+      value: -0.225
+      dtype: double
