@@ -27,6 +27,8 @@ struct Pose
   double timeStamp;
   Eigen::Vector3d position;
   Eigen::Matrix3d orientation;
+  Eigen::Vector3d linearVelocity;
+  Eigen::Vector3d angularVelocity;
 };
 
 class PoseBuffer
@@ -59,12 +61,29 @@ public:
 
   void addPose(double timeStamp, Eigen::Vector3d pos, Eigen::Matrix3d ori)
   {
-
     std::lock_guard<std::mutex> guard(mtx_);
-    if (buffer.size() >= maxSize_) {
-      buffer.pop_front();        // Remove the oldest pose if buffer is full
+
+    Eigen::Vector3d linearVelocity = Eigen::Vector3d::Zero();
+    Eigen::Vector3d angularVelocity = Eigen::Vector3d::Zero();
+
+    if (!buffer.empty()) {
+      // Calculate time difference
+      double dt = timeStamp - buffer.back().timeStamp;
+      if (dt > 0) {
+        // Calculate linear velocity (v = Δx / Δt)
+        linearVelocity = (pos - buffer.back().position) / dt;
+
+        // Calculate angular velocity using the rotation matrix (R = R_prev.transpose() * R_current)
+        Eigen::Matrix3d relative_rotation = buffer.back().orientation.transpose() * ori;
+        Eigen::AngleAxisd angleAxis(relative_rotation);
+        angularVelocity = angleAxis.axis() * angleAxis.angle() / dt;
+      }
     }
-    buffer.push_back({timeStamp, pos, ori});
+
+    if (buffer.size() >= maxSize_) {
+      buffer.pop_front(); // Remove the oldest pose if buffer is full
+    }
+    buffer.push_back({timeStamp, pos, ori, linearVelocity, angularVelocity});
   }
 
   Pose getClosestPose(double timeStamp)
@@ -109,8 +128,10 @@ private:
   {
     Pose defaultPose;
     defaultPose.timeStamp = 0.0;
-    defaultPose.position = Eigen::Vector3d(0.0, 0.0, 0.0);
+    defaultPose.position = Eigen::Vector3d::Zero();
     defaultPose.orientation = Eigen::Matrix3d::Identity();
+    defaultPose.linearVelocity = Eigen::Vector3d::Zero();
+    defaultPose.angularVelocity = Eigen::Vector3d::Zero();
     return defaultPose;
   }
 };

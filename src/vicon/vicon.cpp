@@ -38,45 +38,58 @@ bool Vicon::advance()
 {
   rclcpp::spin_some(this->get_node_base_interface());
 
-  Eigen::VectorXd gc;
-  Eigen::VectorXd gv;
-  raisim::Vec<4> quat;
+  // Eigen::VectorXd gc;
+  // Eigen::VectorXd gv;
+  // raisim::Vec<4> quat;
 
-  robotHub_->lockMutex();
-  robotHub_->getState(gc, gv);
-  robotHub_->unlockMutex();
+  // robotHub_->lockMutex();
+  // robotHub_->getState(gc, gv);
+  // robotHub_->unlockMutex();
 
-  auto pose = poseBuffers_["robot"].getLastPose();
+  // auto pose = poseBuffers_["robot"].getLastPose();
 
-  raisim::rotMatToQuat(pose.orientation, quat);
+  // raisim::rotMatToQuat(pose.orientation, quat);
 
-  gc.head(3) = pose.position;
-  gc.segment(3, 4) = quat.e();
+  // gc.head(3) = pose.position;
+  // gc.segment(3, 4) = quat.e();
 
-  serverHub_.lockVisualizationServerMutex();
-  robotVicon_->setState(gc, gv);
-  serverHub_.unlockVisualizationServerMutex();
+  // serverHub_.lockVisualizationServerMutex();
+  // robotVicon_->setState(gc, gv);
+  // serverHub_.unlockVisualizationServerMutex();
 
-  if (use_object_) {
-    pose = poseBuffers_["object"].getLastPose();
-    raisim::rotMatToQuat(pose.orientation, quat);
-    serverHub_.lockVisualizationServerMutex();
-    objectVicon_->setPosition(pose.position);
-    objectVicon_->setOrientation(pose.orientation);
-    serverHub_.unlockVisualizationServerMutex();
+  dataLogger_.append(
+  logIdx_,
+  poseBuffers_["robot"].getLastPose().position,
+  poseBuffers_["robot"].getLastPose().orientation,
+  poseBuffers_["robot"].getLastPose().linearVelocity,
+  poseBuffers_["robot"].getLastPose().angularVelocity);
 
-    dataLogger_.append(
-      logIdx_,
-      poseBuffers_["robot"].getLastPose().position,
-      poseBuffers_["robot"].getLastPose().orientation,
-      poseBuffers_["object"].getLastPose().position,
-      poseBuffers_["object"].getLastPose().orientation);
-  } else {
-    dataLogger_.append(
-      logIdx_,
-      poseBuffers_["robot"].getLastPose().position,
-      poseBuffers_["robot"].getLastPose().orientation);
-  }
+  // if (use_object_) {
+  //   pose = poseBuffers_["object"].getLastPose();
+  //   raisim::rotMatToQuat(pose.orientation, quat);
+  //   serverHub_.lockVisualizationServerMutex();
+  //   objectVicon_->setPosition(pose.position);
+  //   objectVicon_->setOrientation(pose.orientation);
+  //   serverHub_.unlockVisualizationServerMutex();
+
+  //   dataLogger_.append(
+  //     logIdx_,
+  //     poseBuffers_["robot"].getLastPose().position,
+  //     poseBuffers_["robot"].getLastPose().orientation,
+  //     poseBuffers_["robot"].getLastPose().linearVelocity,
+  //     poseBuffers_["robot"].getLastPose().angularVelocity,
+  //     poseBuffers_["object"].getLastPose().position,
+  //     poseBuffers_["object"].getLastPose().orientation,
+  //     poseBuffers_["object"].getLastPose().linearVelocity,
+  //     poseBuffers_["object"].getLastPose().angularVelocity);
+  // } else {
+  //   dataLogger_.append(
+  //     logIdx_,
+  //     poseBuffers_["robot"].getLastPose().position,
+  //     poseBuffers_["robot"].getLastPose().orientation,
+  //     poseBuffers_["robot"].getLastPose().linearVelocity,
+  //     poseBuffers_["robot"].getLastPose().angularVelocity,);
+  // }
 
   return true;
 }
@@ -92,28 +105,41 @@ bool Vicon::init()
   Eigen::Vector3d robot_offset{0, 0, robot_offset_z};
   offsets_.emplace("robot", robot_offset);
 
-  if (use_object_) {
-    objectVicon_ = reinterpret_cast<raisim::SingleBodyObject *>(
-      worldHub_.getObject("object_vicon")
-    );
-    poseBuffers_.emplace("object", PoseBuffer(100));
+  logIdx_ = dataLogger_.initializeAnotherDataGroup(
+  "Vicon",
+  "RobotPosition", poseBuffers_["robot"].getLastPose().position,
+  "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
+  "RobotLinearVelocity", poseBuffers_["robot"].getLastPose().linearVelocity,
+  "RobotAngularVelocity", poseBuffers_["robot"].getLastPose().angularVelocity);
 
-    double object_offset_z = double(param_["offset"]["object"]("z"));
-    Eigen::Vector3d object_offset{0, 0, object_offset_z};
-    offsets_.emplace("object", object_offset);
+  // if (use_object_) {
+  //   objectVicon_ = reinterpret_cast<raisim::SingleBodyObject *>(
+  //     worldHub_.getObject("object_vicon")
+  //   );
+  //   poseBuffers_.emplace("object", PoseBuffer(100));
 
-    logIdx_ = dataLogger_.initializeAnotherDataGroup(
-      "Vicon",
-      "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
-      "ObjectPosition", poseBuffers_["object"].getLastPose().position,
-      "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation);
-  } else {
-    logIdx_ = dataLogger_.initializeAnotherDataGroup(
-      "Vicon",
-      "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation);
-  }
+  //   double object_offset_z = double(param_["offset"]["object"]("z"));
+  //   Eigen::Vector3d object_offset{0, 0, object_offset_z};
+  //   offsets_.emplace("object", object_offset);
+
+  //   logIdx_ = dataLogger_.initializeAnotherDataGroup(
+  //     "Vicon",
+  //     "RobotPosition", poseBuffers_["robot"].getLastPose().position,
+  //     "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
+  //     "RobotLinearVelocity", poseBuffers_["robot"].getLastPose().linearVelocity,
+  //     "RobotAngularVelocity", poseBuffers_["robot"].getLastPose().angularVelocity,
+  //     "ObjectPosition", poseBuffers_["object"].getLastPose().position,
+  //     "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation,
+  //     "ObjectLinearVelocity", poseBuffers_["object"].getLastPose().linearVelocity,
+  //     "ObjectAngularVelocity", poseBuffers_["object"].getLastPose().angularVelocity);
+  // } else {
+  //   logIdx_ = dataLogger_.initializeAnotherDataGroup(
+  //     "Vicon",
+  //     "RobotPosition", poseBuffers_["robot"].getLastPose().position,
+  //     "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
+  //     "RobotLinearVelocity", poseBuffers_["robot"].getLastPose().linearVelocity,
+  //     "RobotAngularVelocity", poseBuffers_["robot"].getLastPose().angularVelocity);
+  // }
 
   this->createSubscriber();
 
@@ -149,7 +175,7 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
   /// Offset
   position += orientation.e() * offsets_[frame_id];
 
-  poseBuffers_[frame_id].addPose(0, position, orientation.e());
+  poseBuffers_[frame_id].addPose(msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9, position, orientation.e());
 }
 
 extern "C" Plugin * create(
