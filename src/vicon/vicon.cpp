@@ -51,7 +51,7 @@ bool Vicon::advance()
   raisim::rotMatToQuat(pose.orientation, quat);
 
   gc.head(3) = pose.position;
-  gc.segment(3, 4) = quat.e();
+  // gc.segment(3, 4) = quat.e();
 
   serverHub_.lockVisualizationServerMutex();
   robotVicon_->setState(gc, gv);
