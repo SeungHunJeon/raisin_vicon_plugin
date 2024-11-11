@@ -136,11 +136,10 @@ private:
   void poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
 
   /// Initialization for initial pose
-  bool is_initialized_ = false;
-
   // 초기 pose 데이터 정렬 - 첫 번째 데이터로 offset 계산
-  Eigen::Vector3d initial_position_;
-  raisim::Mat<3, 3> initial_orientation_;
+  std::map<std::string, Eigen::Vector3d> initial_positions_;
+  std::map<std::string, raisim::Mat<3, 3>> initial_orientations_;
+  std::map<std::string, bool> is_initialized_;
 
   /// Subscriber
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr poseSubscription_;

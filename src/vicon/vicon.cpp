@@ -122,7 +122,7 @@ bool Vicon::init()
 
 bool Vicon::reset()
 {
-  is_initialized_ = false;
+  is_initialized_.clear();
 
   return true;
 }
@@ -153,25 +153,43 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
   raisim::quatToRotMat(quat, orientation);
 
-  if (frame_id == "robot" && !is_initialized_) {
-    initial_position_ = position;
-    initial_orientation_ = orientation;
-    is_initialized_ = true;
+  // Initialize position and orientation if not yet initialized for this frame_id
+  if (is_initialized_.find(frame_id) == is_initialized_.end() || !is_initialized_[frame_id]) {
+    initial_positions_[frame_id] = position;
+    initial_orientations_[frame_id] = orientation;
+    is_initialized_[frame_id] = true;
   }
 
-  if (!is_initialized_) {
+  // Check if both "robot" and "object" are initialized, otherwise return
+  if (!(is_initialized_["robot"] && is_initialized_["object"])) {
     return;
   }
 
-  // 목표 정렬 위치와 방향 정의
-  Eigen::Vector3d nominal_position(0.0, 0.0, initial_position_(2));
-  raisim::Vec<4> nominal_orientation_quat = {1, 0, 0, 0};
+  Eigen::Vector3d nominal_position;
+  raisim::Vec<4> nominal_orientation_quat;
   raisim::Mat<3, 3> nominal_orientation;
-  raisim::quatToRotMat(nominal_orientation_quat, nominal_orientation);
+  // 목표 정렬 위치와 방향 정의
+  if(frame_id == "robot") {
+    nominal_position << 0.0, 0.0, initial_positions_[frame_id](2);
+    nominal_orientation_quat = {1, 0, 0, 0};
+  }
+  else if (frame_id == "object") {
+    // Set the object's nominal position relative to the robot's initial position
+    nominal_position = initial_positions_["object"] - initial_positions_["robot"];
+
+    // Calculate the relative orientation between robot and object
+    nominal_orientation.e() = initial_orientations_["robot"].e().transpose() * initial_orientations_["object"].e();
+  }
+
+// Convert the nominal quaternion to a rotation matrix, if needed
+  if (frame_id == "robot") {
+    raisim::quatToRotMat(nominal_orientation_quat, nominal_orientation);
+  }
 
   // 현재 pose에서 초기 offset을 제거하고, 정렬 값에 맞게 변환
-  position = nominal_position + nominal_orientation.e() * (position - initial_position_);
-  orientation.e() = nominal_orientation.e() * initial_orientation_.e().transpose() * orientation.e();
+  position = nominal_position + nominal_orientation.e() * (position - initial_positions_[frame_id]);
+  orientation.e() = nominal_orientation.e() * initial_orientations_[frame_id].e().transpose() * orientation.e();
+
 
   /// Offset
   position += orientation.e() * offsets_[frame_id];
