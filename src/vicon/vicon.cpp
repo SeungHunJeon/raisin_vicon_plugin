@@ -62,20 +62,20 @@ bool Vicon::advance()
     raisim::rotMatToQuat(pose.orientation, quat);
     serverHub_.lockVisualizationServerMutex();
     objectVicon_->setPosition(pose.position);
-    objectVicon_->setOrientation(pose.orientation);
+    objectVicon_->setOrientation(pose.orientation_e);
     serverHub_.unlockVisualizationServerMutex();
 
     dataLogger_.append(
       logIdx_,
       poseBuffers_["robot"].getLastPose().position,
-      poseBuffers_["robot"].getLastPose().orientation,
+      poseBuffers_["robot"].getLastPose().orientation_e,
       poseBuffers_["object"].getLastPose().position,
-      poseBuffers_["object"].getLastPose().orientation);
+      poseBuffers_["object"].getLastPose().orientation_e);
   } else {
     dataLogger_.append(
       logIdx_,
       poseBuffers_["robot"].getLastPose().position,
-      poseBuffers_["robot"].getLastPose().orientation);
+      poseBuffers_["robot"].getLastPose().orientation_e);
   }
 
   return true;
@@ -105,14 +105,14 @@ bool Vicon::init()
     logIdx_ = dataLogger_.initializeAnotherDataGroup(
       "Vicon",
       "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation,
+      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation_e,
       "ObjectPosition", poseBuffers_["object"].getLastPose().position,
-      "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation);
+      "ObjectOrientation", poseBuffers_["object"].getLastPose().orientation_e);
   } else {
     logIdx_ = dataLogger_.initializeAnotherDataGroup(
       "Vicon",
       "RobotPosition", poseBuffers_["robot"].getLastPose().position,
-      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation);
+      "RobotOrientation", poseBuffers_["robot"].getLastPose().orientation_e);
   }
 
   this->createSubscriber();
@@ -175,7 +175,7 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
   /// Offset
   position += orientation.e() * offsets_[frame_id];
-  poseBuffers_[frame_id].addPose(0, position, orientation.e());
+  poseBuffers_[frame_id].addPose(0, position, orientation.e(), orientation);
 }
 
 extern "C" Plugin * create(

@@ -26,7 +26,8 @@ struct Pose
 {
   double timeStamp;
   Eigen::Vector3d position;
-  Eigen::Matrix3d orientation;
+  Eigen::Matrix3d orientation_e;
+  raisim::Mat<3,3> orientation;
 };
 
 class PoseBuffer
@@ -57,14 +58,14 @@ public:
     return *this;
   }
 
-  void addPose(double timeStamp, Eigen::Vector3d pos, Eigen::Matrix3d ori)
+  void addPose(double timeStamp, Eigen::Vector3d pos, Eigen::Matrix3d ori_e, raisim::Mat<3,3> ori)
   {
 
     std::lock_guard<std::mutex> guard(mtx_);
     if (buffer.size() >= maxSize_) {
       buffer.pop_front();        // Remove the oldest pose if buffer is full
     }
-    buffer.push_back({timeStamp, pos, ori});
+    buffer.push_back({timeStamp, pos, ori_e, ori});
   }
 
   Pose getClosestPose(double timeStamp)
@@ -108,9 +109,11 @@ private:
   Pose getDefaultPose() const
   {
     Pose defaultPose;
+    raisim::Mat<3,3> rot{1, 0, 0, 0, 1, 0, 0, 0, 1};
     defaultPose.timeStamp = 0.0;
     defaultPose.position = Eigen::Vector3d(0.0, 0.0, 0.0);
-    defaultPose.orientation = Eigen::Matrix3d::Identity();
+    defaultPose.orientation_e = Eigen::Matrix3d::Identity();
+    defaultPose.orientation = rot;
     return defaultPose;
   }
 };
