@@ -51,7 +51,7 @@ bool Vicon::advance()
   raisim::rotMatToQuat(pose.orientation, quat);
 
   gc.head(3) = pose.position;
-  // gc.segment(3, 4) = quat.e();
+  gc.segment(3, 4) = quat.e();
 
   serverHub_.lockVisualizationServerMutex();
   robotVicon_->setState(gc, gv);
@@ -94,11 +94,11 @@ bool Vicon::init()
 
   if (use_object_) {
     objectVicon_ = reinterpret_cast<raisim::SingleBodyObject *>(
-      worldHub_.getObject("object_vicon")
+      worldHub_.getObject("object")
     );
     poseBuffers_.emplace("object", PoseBuffer(100));
 
-    double object_offset_z = double(param_["offset"]["object"]("z"));
+    double object_offset_z = -(reinterpret_cast<raisim::Box*>(objectVicon_)->getDim().e()(2) / 2);
     Eigen::Vector3d object_offset{0, 0, object_offset_z};
     offsets_.emplace("object", object_offset);
 
@@ -116,6 +116,13 @@ bool Vicon::init()
   }
 
   this->createSubscriber();
+
+  return true;
+}
+
+bool Vicon::reset()
+{
+  is_initialized_ = false;
 
   return true;
 }
@@ -146,9 +153,28 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
   raisim::quatToRotMat(quat, orientation);
 
+  if (frame_id == "robot" && !is_initialized_) {
+    initial_position_ = position;
+    initial_orientation_ = orientation;
+    is_initialized_ = true;
+  }
+
+  if (!is_initialized_) {
+    return;
+  }
+
+  // 목표 정렬 위치와 방향 정의
+  Eigen::Vector3d nominal_position(0.0, 0.0, initial_position_(2));
+  raisim::Vec<4> nominal_orientation_quat = {1, 0, 0, 0};
+  raisim::Mat<3, 3> nominal_orientation;
+  raisim::quatToRotMat(nominal_orientation_quat, nominal_orientation);
+
+  // 현재 pose에서 초기 offset을 제거하고, 정렬 값에 맞게 변환
+  position = nominal_position + nominal_orientation.e() * (position - initial_position_);
+  orientation.e() = nominal_orientation.e() * initial_orientation_.e().transpose() * orientation.e();
+
   /// Offset
   position += orientation.e() * offsets_[frame_id];
-
   poseBuffers_[frame_id].addPose(0, position, orientation.e());
 }
 
