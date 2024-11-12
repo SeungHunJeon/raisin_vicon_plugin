@@ -153,25 +153,25 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
   raisim::quatToRotMat(quat, orientation);
 
-  // Initialize position and orientation if not yet initialized for this frame_id
-  if (is_initialized_.find(frame_id) == is_initialized_.end() || !is_initialized_[frame_id]) {
-    initial_positions_[frame_id] = position;
-    initial_orientations_[frame_id] = orientation;
-    is_initialized_[frame_id] = true;
-  }
-
-  // Check if both "robot" and "object" are initialized, otherwise return
-  if (!(is_initialized_["robot"] && is_initialized_["object"])) {
-    return;
-  }
-
-  Eigen::Vector3d nominal_position;
-  // 목표 정렬 위치와 방향 정의
-  nominal_position << 0.0, 0.0, initial_positions_[frame_id](2);
-
-  // 현재 pose에서 초기 offset을 제거하고, 정렬 값에 맞게 변환
-  orientation.e() = initial_orientations_["robot"].e().transpose() * orientation.e();
-  position = initial_orientations_["robot"].e().transpose() * (position - initial_positions_["robot"]);
+//  // Initialize position and orientation if not yet initialized for this frame_id
+//  if (is_initialized_.find(frame_id) == is_initialized_.end() || !is_initialized_[frame_id]) {
+//    initial_positions_[frame_id] = position;
+//    initial_orientations_[frame_id] = orientation;
+//    is_initialized_[frame_id] = true;
+//  }
+//
+//  // Check if both "robot" and "object" are initialized, otherwise return
+//  if (!(is_initialized_["robot"] && is_initialized_["object"])) {
+//    return;
+//  }
+//
+//  Eigen::Vector3d nominal_position;
+//  // 목표 정렬 위치와 방향 정의
+//  nominal_position << 0.0, 0.0, initial_positions_[frame_id](2);
+//
+//  // 현재 pose에서 초기 offset을 제거하고, 정렬 값에 맞게 변환
+//  orientation.e() = initial_orientations_["robot"].e().transpose() * orientation.e();
+//  position = initial_orientations_["robot"].e().transpose() * (position - initial_positions_["robot"]);
 
 //
 //  position = nominal_position + nominal_orientation.e() * (position - initial_positions_[frame_id]);
@@ -179,7 +179,7 @@ void Vicon::poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
 
   /// Offset
-  position += orientation.e() * (nominal_position + offsets_[frame_id]);
+  position += orientation.e() * offsets_[frame_id];
   poseBuffers_[frame_id].addPose(0, position, orientation.e(), orientation);
 }
 
